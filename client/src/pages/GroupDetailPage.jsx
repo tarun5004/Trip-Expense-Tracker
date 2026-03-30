@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { cn } from '../../utils/cn';
+import { cn } from '../utils/cn';
 import ROUTES from '../constants/routes';
 import Button from '../components/atoms/Button';
 import Icon from '../components/atoms/Icon';

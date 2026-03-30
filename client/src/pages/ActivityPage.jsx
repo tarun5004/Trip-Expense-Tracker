@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ActivityFeed from '../components/organisms/ActivityFeed';
-import { cn } from '../../utils/cn';
+import { cn } from '../utils/cn';
 
 export const ActivityPage = () => {
   const [isLoading, setIsLoading] = useState(true);

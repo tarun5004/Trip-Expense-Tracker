@@ -7,8 +7,8 @@
 
 import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { cn } from '../../utils/cn';
-import ROUTES from '../../constants/routes';
+import { cn } from '../utils/cn';
+import ROUTES from '../constants/routes';
 import Icon from '../components/atoms/Icon';
 import Avatar from '../components/atoms/Avatar';
 import Tooltip from '../components/atoms/Tooltip';

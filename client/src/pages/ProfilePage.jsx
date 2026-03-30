@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { cn } from '../../utils/cn';
+import { cn } from '../utils/cn';
 import Avatar from '../components/atoms/Avatar';
 import FormField from '../components/molecules/FormField';
 import Input from '../components/atoms/Input';

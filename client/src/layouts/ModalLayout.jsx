@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { cn } from '../../utils/cn';
+import { cn } from '../utils/cn';
 import Icon from '../components/atoms/Icon';
 
 export const ModalLayout = ({

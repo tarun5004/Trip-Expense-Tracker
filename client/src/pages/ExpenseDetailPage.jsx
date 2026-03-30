@@ -6,13 +6,13 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { cn } from '../../utils/cn';
+import { cn } from '../utils/cn';
 import ROUTES from '../constants/routes';
 import Icon from '../components/atoms/Icon';
 import Button from '../components/atoms/Button';
 import Avatar from '../components/atoms/Avatar';
 import AmountDisplay from '../components/atoms/AmountDisplay';
-import { formatDate } from '../../utils/format';
+import { formatDate } from '../utils/format';
 import Divider from '../components/atoms/Divider';
 
 export const ExpenseDetailPage = () => {
