@@ -19,6 +19,7 @@ const {
 const ApiError = require('../utils/ApiError');
 const { SPLIT_TYPES, ACTION_TYPES, ENTITY_TYPES, NOTIFICATION_TYPES, EDIT_WINDOW_HOURS } = require('../config/constants');
 const { parsePaginationParams, buildPaginationMeta } = require('../utils/pagination');
+const { emitRealtimeEvent, REALTIME_EVENTS } = require('../realtime/eventEmitter');
 
 /**
  * @description Create a new expense with computed splits.
@@ -151,6 +152,24 @@ async function createExpense(userId, data) {
       { entityType: ENTITY_TYPES.EXPENSE, entityId: result.expense.id }
     );
   }
+
+  // Emit realtime event for live UI updates
+  emitRealtimeEvent(REALTIME_EVENTS.EXPENSE_CREATED, {
+    groupId,
+    expenseId: result.expense.id,
+    title,
+    totalAmountCents,
+    splitType,
+    paidByUserId: payerId,
+    actorUserId: userId,
+    participantIds: computedSplits.map((s) => s.userId),
+  });
+
+  emitRealtimeEvent(REALTIME_EVENTS.BALANCE_UPDATED, {
+    groupId,
+    reason: 'expense_created',
+    expenseId: result.expense.id,
+  });
 
   return result;
 }
@@ -303,6 +322,20 @@ async function updateExpense(userId, expenseId, data) {
     updatedFields: Object.keys(fields),
   });
 
+  // Emit realtime event for live UI updates
+  emitRealtimeEvent(REALTIME_EVENTS.EXPENSE_UPDATED, {
+    groupId: expense.group_id,
+    expenseId,
+    updatedFields: Object.keys(fields),
+    actorUserId: userId,
+  });
+
+  emitRealtimeEvent(REALTIME_EVENTS.BALANCE_UPDATED, {
+    groupId: expense.group_id,
+    reason: 'expense_updated',
+    expenseId,
+  });
+
   return result;
 }
 
@@ -355,6 +388,19 @@ async function deleteExpense(userId, expenseId) {
   await activityService.logActivity(userId, expense.group_id, ACTION_TYPES.EXPENSE_DELETED, ENTITY_TYPES.EXPENSE, expenseId, {
     title: expense.title,
     totalAmountCents: expense.total_amount_cents,
+  });
+
+  // Emit realtime event for live UI updates
+  emitRealtimeEvent(REALTIME_EVENTS.EXPENSE_DELETED, {
+    groupId: expense.group_id,
+    expenseId,
+    actorUserId: userId,
+  });
+
+  emitRealtimeEvent(REALTIME_EVENTS.BALANCE_UPDATED, {
+    groupId: expense.group_id,
+    reason: 'expense_deleted',
+    expenseId,
   });
 }
 

@@ -13,6 +13,7 @@ const balanceService = require('./balance.service');
 const ApiError = require('../utils/ApiError');
 const { ACTION_TYPES, ENTITY_TYPES, NOTIFICATION_TYPES } = require('../config/constants');
 const { parsePaginationParams, buildPaginationMeta } = require('../utils/pagination');
+const { emitRealtimeEvent, REALTIME_EVENTS } = require('../realtime/eventEmitter');
 
 /**
  * @description Record a new payment (settlement) between two group members.
@@ -88,6 +89,22 @@ async function createPayment(userId, data) {
     { entityType: ENTITY_TYPES.PAYMENT, entityId: payment.id }
   );
 
+  // Emit realtime events for live UI updates
+  emitRealtimeEvent(REALTIME_EVENTS.PAYMENT_RECORDED, {
+    groupId,
+    paymentId: payment.id,
+    paidByUserId: userId,
+    paidToUserId,
+    amountCents,
+    actorUserId: userId,
+  });
+
+  emitRealtimeEvent(REALTIME_EVENTS.BALANCE_UPDATED, {
+    groupId,
+    reason: 'payment_recorded',
+    paymentId: payment.id,
+  });
+
   return payment;
 }
 
@@ -150,7 +167,19 @@ async function deletePayment(userId, paymentId) {
   await activityService.logActivity(userId, payment.group_id, ACTION_TYPES.PAYMENT_CREATED, ENTITY_TYPES.PAYMENT, paymentId, {
     action: 'deleted',
     amountCents: payment.amount_cents,
+    // Emit realtime events for live UI updates
+  emitRealtimeEvent(REALTIME_EVENTS.PAYMENT_DELETED, {
+    groupId: payment.group_id,
+    paymentId,
+    actorUserId: userId,
   });
+
+  emitRealtimeEvent(REALTIME_EVENTS.BALANCE_UPDATED, {
+    groupId: payment.group_id,
+    reason: 'payment_deleted',
+    paymentId,
+  });
+});
 }
 
 module.exports = { createPayment, getPayments, deletePayment };

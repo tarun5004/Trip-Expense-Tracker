@@ -1,7 +1,18 @@
 /**
  * @fileoverview Barrel export for the expense calculation engine.
- * All split calculations, debt simplification, and currency operations.
+ * Single import point for all split calculations, debt simplification,
+ * balance computation, and currency utilities.
+ *
  * @module services/expenseEngine
+ *
+ * @example
+ * const {
+ *   calculateEqualSplit,
+ *   validateSplitConsistency,
+ *   simplifyDebts,
+ *   toCents,
+ *   fromCents
+ * } = require('./expenseEngine');
  */
 
 const {
@@ -29,6 +40,7 @@ const {
   safeAdd,
   safeSubtract,
   safeMultiply,
+  MAX_SAFE_CENTS,
 } = require('./currencyUtils');
 
 module.exports = {
@@ -54,4 +66,5 @@ module.exports = {
   safeAdd,
   safeSubtract,
   safeMultiply,
+  MAX_SAFE_CENTS,
 };

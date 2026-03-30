@@ -9,6 +9,7 @@ const app = require('./app');
 const env = require('./config/env');
 const { testConnection, closePool } = require('./config/db');
 const { testRedisConnection, closeRedis } = require('./config/redis');
+const { initSocketServer, closeSocketServer } = require('./realtime/socketServer');
 
 const server = http.createServer(app);
 
@@ -25,6 +26,10 @@ async function startServer() {
     // Connect to Redis
     console.log('🔄 Connecting to Redis...');
     await testRedisConnection();
+
+    // Initialize Socket.IO (attaches to the same httpServer)
+    console.log('🔄 Initializing Socket.IO...');
+    initSocketServer(server);
 
     // Start HTTP server
     server.listen(env.PORT, () => {
@@ -48,6 +53,8 @@ async function startServer() {
 ║                 /api/${env.API_VERSION}/activity           ║
 ║                 /api/${env.API_VERSION}/notifications      ║
 ║                                                   ║
+║   Realtime:     Socket.IO attached              ║
+║                                                   ║
 ╚═══════════════════════════════════════════════════╝
       `);
     });
@@ -69,6 +76,13 @@ async function gracefulShutdown(signal) {
   // Stop accepting new connections
   server.close(async () => {
     console.log('🔌 HTTP server closed');
+
+    try {
+      // Close Socket.IO server
+      await closeSocketServer();
+    } catch (err) {
+      console.error('Error closing Socket.IO:', err.message);
+    }
 
     try {
       // Close database connection pool

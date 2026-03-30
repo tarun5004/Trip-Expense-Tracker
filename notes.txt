@@ -1,0 +1,7 @@
+Section	Tests	Highlights
+currencyUtils	42	Float imprecision (0.1+0.2), fromCents returns string type, overflow detection, NaN/Infinity/null guards
+splitCalculator	42	1-cent splits, remainder distribution for 7÷3, ₹1L among 50, ALWAYS sums to total parametric test, float/negative rejection
+debtSimplifier	22	Circular debt (A→B→C→A = 0 transactions), money conservation invariant, 100-person group in <50ms
+balanceCalculator	18	pg string amounts, direction flipping, NaN skipping, net-balance-sums-to-zero invariant
+barrel index	5	All 17 exports verified, barrel vs direct import consistency
+end-to-end	4	Full lifecycle (toCents→split→validate→fromCents), multi-payer simplification, 3-way circular cancellation
