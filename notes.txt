@@ -52,3 +52,35 @@ Leverages an LRU-eviction Set checking the eventId to prevent repeating fetches 
 You can read through the comprehensive technical rules implemented in the new CACHE_STRATEGY.md file located at the project root.
 
 What's Next? Our architecture is entirely scaffolded! Do you want to finally stitch the Pages, Layouts, Stores, and Hooks together using React Router inside our main App.jsx entry file?
+
+
+
+
+
+ Full-Stack Integration Layer Complete!
+
+I have built the final structural glue required to connect the frontend React application with the backend Node.js REST API and WebSocket events in a robust, production-grade manner.
+
+What Was Scaffolded:
+1. The "Bulletproof" Axios Client (/client/src/api/client.js)
+
+Intercepts requests and injects volatile tokens from utils/auth.js and strict X-Request-ID tracing IDs.
+Solves the classic "Token Refresh" concurrency issue utilizing an internal asynchronous failedQueue. If multiple components throw 401s simultaneously, it pauses all of them, fires a single /auth/refresh request (relaying the httpOnly cookie natively using withCredentials: true), and precisely retries every original queued request upon success smoothly.
+2. Decoupled Express Backend (server/app.js & server/server.js)
+
+Separated express() mounts (Middleware, Cors, RateLimiters) from the physical HTTP boot sequence (server.listen).
+The Server now traps OS level signals (e.g. SIGINT, SIGTERM from Docker) and executes a rigorous Graceful Shutdown:
+Automatically stops receiving new HTTP connections.
+Closes active Socket.IO pipes cleanly rather than letting clients crash.
+Flushes and seals the PostgreSQL connection pool.
+3. Infrastructure Automation (docker-compose.yml & .env.example)
+
+Built a multi-container stack natively bridging the postgres:15, redis:7, the node backend, and the vite frontend onto a custom bridge-network (splitsmart-net).
+Provided pgadmin4 instantly accessible at http://localhost:5050 allowing direct database analysis during development without setting up local software.
+The .env.example perfectly outlines all DB_URL, JWT_SECRET, and VITE_API_URL requirements keeping explicit configuration mappings.
+4. The Verification Map (INTEGRATION_CHECKLIST.md)
+
+This file acts as your roadmap, providing exact step-by-step procedures covering Chaos Engineering techniques (like manually stopping the database halfway through an interaction) and verifying silent token refreshes natively within network tabs.
+The entire SplitSmart Application Architecture is now fully documented, scaffolded, and wired globally from UI Atoms down to PostgreSQL connections.
+
+Is there anything else you'd like me to build or adjust within the system?
