@@ -28,8 +28,8 @@ const envSchema = z.object({
   // --- Authentication ---
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-  JWT_ACCESS_EXPIRY: z.string().regex(durationRegex, 'JWT_ACCESS_EXPIRY must match pattern: \\d+[smhd]').default('15m'),
-  JWT_REFRESH_EXPIRY: z.string().regex(durationRegex, 'JWT_REFRESH_EXPIRY must match pattern: \\d+[smhd]').default('7d'),
+  JWT_ACCESS_EXPIRES: z.string().regex(durationRegex, 'JWT_ACCESS_EXPIRES must match pattern: \\d+[smhd]').default('15m'),
+  JWT_REFRESH_EXPIRES: z.string().regex(durationRegex, 'JWT_REFRESH_EXPIRES must match pattern: \\d+[smhd]').default('7d'),
   BCRYPT_SALT_ROUNDS: z.string().default('12').transform(Number).pipe(z.number().int().min(4).max(20)),
 
   // --- CORS ---
