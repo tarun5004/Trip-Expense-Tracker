@@ -5,3 +5,23 @@ debtSimplifier	22	Circular debt (A→B→C→A = 0 transactions), money conserva
 balanceCalculator	18	pg string amounts, direction flipping, NaN skipping, net-balance-sums-to-zero invariant
 barrel index	5	All 17 exports verified, barrel vs direct import consistency
 end-to-end	4	Full lifecycle (toCents→split→validate→fromCents), multi-payer simplification, 3-way circular cancellation
+
+
+
+
+
+Real Timer Layer :-
+#	File	Purpose
+1	server/realtime/socketServer.js	Socket.IO server init, JWT auth middleware, auto-join rooms, connection state recovery
+2	server/realtime/roomManager.js	Room lifecycle: join/leave/broadcast, DB-verified membership, auto-join-all on connect
+3	server/realtime/eventHandlers.js	Client→server handlers: group:join, group:leave, ping, typing indicators, disconnect
+4	server/realtime/eventEmitter.js	Internal Node.js EventEmitter bus decoupling services from socket.io. 13 event types bridged
+5	client/src/utils/socket.js	Singleton client with lazy JWT auth, exponential backoff reconnection, idempotency dedup set
+6	REALTIME_EVENTS.md	14 events documented with TypeScript payloads, trigger conditions, React Query cache keys
+Key Architecture Decisions
+Decoupled via EventEmitter — services call emitRealtimeEvent() and never import socket.io. The realtime layer can be disabled entirely without touching business logic.
+DB-verified room joins — every group:join checks groupModel.isMember() from the database. Never trust client claims.
+Idempotency — every S→C payload includes a UUID eventId. The client dedup set (capped at 1000) drops replays from reconnection recovery.
+Dual room architecture — group:{id} for group-scoped events, user:{id} for personal notifications.
+Service integration complete — expense.service.js and payment.service.js emit realtime events after every create/update/delete mutation + a paired balance:updated event.
+Graceful shutdown — closeSocketServer() added to server.js shutdown sequence.

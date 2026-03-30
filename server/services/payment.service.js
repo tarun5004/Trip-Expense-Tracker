@@ -167,7 +167,9 @@ async function deletePayment(userId, paymentId) {
   await activityService.logActivity(userId, payment.group_id, ACTION_TYPES.PAYMENT_CREATED, ENTITY_TYPES.PAYMENT, paymentId, {
     action: 'deleted',
     amountCents: payment.amount_cents,
-    // Emit realtime events for live UI updates
+  });
+
+  // Emit realtime events for live UI updates
   emitRealtimeEvent(REALTIME_EVENTS.PAYMENT_DELETED, {
     groupId: payment.group_id,
     paymentId,
@@ -179,7 +181,6 @@ async function deletePayment(userId, paymentId) {
     reason: 'payment_deleted',
     paymentId,
   });
-});
 }
 
 module.exports = { createPayment, getPayments, deletePayment };
