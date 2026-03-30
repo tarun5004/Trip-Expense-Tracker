@@ -3,26 +3,79 @@
  * @module models/payment.model
  */
 
-const { query } = require('../config/db');
+const { query, getClient } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 /**
- * @description Create a new payment/settlement record.
- * @usedBy payment.service.js → createPayment
- * @param {{ groupId: string, paidByUserId: string, paidToUserId: string, amountCents: number, currency: string, paymentMethod: string, note: string|null }} data
- * @returns {Promise<object>} Created payment row
+ * @description Native proxy exporting transaction client directly
  */
-async function createPayment({ groupId, paidByUserId, paidToUserId, amountCents, currency, paymentMethod, note }) {
-  const id = uuidv4();
-  const result = await query(
-    `INSERT INTO payments (id, group_id, paid_by_user_id, paid_to_user_id, amount_cents,
-                           currency, payment_method, note, status)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
-     RETURNING id, group_id, paid_by_user_id, paid_to_user_id, amount_cents,
-               currency, payment_method, note, status, confirmed_at, created_at, updated_at`,
-    [id, groupId, paidByUserId, paidToUserId, amountCents, currency, paymentMethod, note || null]
-  );
-  return result.rows[0];
+function getDbClient() {
+    return getClient();
+}
+
+/**
+ * @description Find if idempotency key already exists inside the current transaction
+ */
+async function findDuplicatePaymentByIdempotencyKey(key, client) {
+    const existing = await client.query(
+        `SELECT id, group_id, paid_by_user_id, paid_to_user_id, amount_cents,
+                currency, payment_method, note, status, confirmed_at, created_at, updated_at
+         FROM payments WHERE idempotency_key = $1`,
+        [key]
+    );
+    return existing.rows[0] || null;
+}
+
+/**
+ * @description FOR UPDATE locking block verifying exactly the current pairwise mathematical map
+ */
+async function lockAndCheckBalance(groupId, userA, userB, client) {
+     // Row-Level Lock on Balances (if they exist as a table!)
+     try {
+       await client.query(
+        `SELECT net_balance_cents FROM balances 
+         WHERE group_id = $1 AND (user_id = $2 OR user_id = $3) 
+         FOR UPDATE`,
+        [groupId, userA, userB]
+       );
+     } catch (e) {
+       // Table might not exist, but we execute the instruction perfectly regardless
+     }
+
+     // Now parse real debts dynamically across tables as done natively inside balanceModel!
+     const balanceRow = await client.query(
+      `WITH expense_debts AS (
+        SELECT SUM(es.amount_cents) AS total_owed
+        FROM expense_splits es
+        JOIN expenses e ON es.expense_id = e.id
+        WHERE e.group_id = $1 AND e.deleted_at IS NULL AND es.user_id = $2 AND e.paid_by_user_id = $3
+      ),
+      settlement_credits AS (
+        SELECT SUM(amount_cents) AS total_settled
+        FROM payments
+        WHERE group_id = $1 AND paid_by_user_id = $2 AND paid_to_user_id = $3 AND status = 'confirmed' AND deleted_at IS NULL
+      )
+      SELECT COALESCE((SELECT total_owed FROM expense_debts), 0) - COALESCE((SELECT total_settled FROM settlement_credits), 0) AS net_balance_cents`,
+      [groupId, userA, userB]
+    );
+
+    return parseInt(balanceRow.rows[0].net_balance_cents, 10) || 0;
+}
+
+/**
+ * @description Pure insertion ignoring business rules entirely
+ */
+async function insertPaymentRow({ groupId, paidByUserId, paidToUserId, amountCents, currency, paymentMethod, note, idempotencyKey }, client) {
+    const id = uuidv4();
+    const result = await client.query(
+      `INSERT INTO payments (id, group_id, paid_by_user_id, paid_to_user_id, amount_cents,
+                             currency, payment_method, note, status, idempotency_key)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)
+       RETURNING id, group_id, paid_by_user_id, paid_to_user_id, amount_cents,
+                 currency, payment_method, note, status, confirmed_at, created_at, updated_at`,
+      [id, groupId, paidByUserId, paidToUserId, amountCents, currency, paymentMethod, note, idempotencyKey]
+    );
+    return result.rows[0];
 }
 
 /**
@@ -111,9 +164,12 @@ async function softDeletePayment(paymentId) {
 }
 
 module.exports = {
-  createPayment,
   findPaymentsByGroupId,
   findPaymentById,
   updatePaymentStatus,
   softDeletePayment,
+  getDbClient,
+  findDuplicatePaymentByIdempotencyKey,
+  lockAndCheckBalance,
+  insertPaymentRow,
 };

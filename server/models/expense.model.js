@@ -93,7 +93,7 @@ async function findExpenseById(expenseId) {
             u.name AS user_name, u.avatar_url AS user_avatar
      FROM expense_splits es
      INNER JOIN users u ON u.id = es.user_id
-     WHERE es.expense_id = $1
+     WHERE es.expense_id = $1 AND es.is_active = true
      ORDER BY es.amount_cents DESC`,
     [expenseId]
   );
@@ -197,14 +197,30 @@ async function updateExpense(expenseId, fields, newSplits) {
 }
 
 /**
- * @description Soft-delete an expense (set deleted_at).
+ * @description Soft-delete an expense (set deleted_at) within an existing transaction.
  * @usedBy expense.service.js → deleteExpense
  * @param {string} expenseId - Expense UUID
+ * @param {object} client - pg transaction client
  * @returns {Promise<void>}
  */
-async function softDeleteExpense(expenseId) {
-  await query(
+async function softDeleteExpense(expenseId, client) {
+  const dbClient = client || { query }; // Fallback to raw query if no client provided
+  await dbClient.query(
     `UPDATE expenses SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+    [expenseId]
+  );
+}
+
+/**
+ * @description Deactivates all splits for an expense within a transaction.
+ * @usedBy expense.service.js → deleteExpense
+ * @param {string} expenseId - Expense UUID
+ * @param {object} client - pg transaction client
+ * @returns {Promise<void>}
+ */
+async function deactivateSplitsByExpenseId(expenseId, client) {
+  await client.query(
+    `UPDATE expense_splits SET is_active = false WHERE expense_id = $1`,
     [expenseId]
   );
 }
@@ -237,5 +253,7 @@ module.exports = {
   findExpensesByGroupId,
   updateExpense,
   softDeleteExpense,
+  deactivateSplitsByExpenseId,
   hasRelatedSettlements,
+  getClient, // Exporting getClient to allow service to construct transactions
 };

@@ -8,7 +8,12 @@
  *   5. Advance pointers until all settled
  *
  * Handles circular debts (A→B→C→A) by collapsing them into net positions.
- * Performance: O(n log n) for n participants — handles 100+ person groups in <50ms.
+ *
+ * Time Complexity: O(N log N)
+ * Reason: Creditor and debtor arrays are sorted by absolute
+ * net balance before the greedy matching pass.
+ * The sort dominates the linear matching step.
+ * Space Complexity: O(N)
  *
  * @module services/expenseEngine/debtSimplifier
  */

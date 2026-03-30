@@ -5,7 +5,6 @@
  */
 
 const paymentModel = require('../models/payment.model');
-const balanceModel = require('../models/balance.model');
 const groupModel = require('../models/group.model');
 const activityService = require('./activity.service');
 const notificationService = require('./notification.service');
@@ -43,32 +42,63 @@ async function createPayment(userId, data) {
     throw ApiError.unprocessable('Recipient is not a member of this group');
   }
 
-  // BR-05: Check that amount does not exceed outstanding balance
-  const outstandingBalance = await balanceModel.getUserPairBalance(groupId, userId, paidToUserId);
-  if (outstandingBalance <= 0) {
-    throw ApiError.unprocessable(
-      'You do not owe anything to this user in this group',
-      [{ field: 'amountCents', message: 'No outstanding balance exists' }]
-    );
-  }
+  // Get a transaction client from models
+  const client = await paymentModel.getDbClient();
+  let payment;
 
-  if (amountCents > outstandingBalance) {
-    throw ApiError.unprocessable(
-      `Payment amount (${amountCents}) exceeds outstanding balance (${outstandingBalance}) (BR-05)`,
-      [{ field: 'amountCents', message: `Maximum allowed: ${outstandingBalance} cents` }]
-    );
-  }
+  try {
+    await client.query('BEGIN');
 
-  // Create the payment
-  const payment = await paymentModel.createPayment({
-    groupId,
-    paidByUserId: userId,
-    paidToUserId,
-    amountCents,
-    currency: currency || 'INR',
-    paymentMethod: paymentMethod || 'cash',
-    note: note || null,
-  });
+    // 1. Optional Idempotency check 
+    if (data.idempotencyKey) {
+       payment = await paymentModel.findDuplicatePaymentByIdempotencyKey(data.idempotencyKey, client);
+       if (payment) {
+           await client.query('ROLLBACK');
+           return payment; 
+       }
+    }
+
+    // 2. Row-lock balances to prevent concurrent modification and verify mathematically inside the lock
+    const outstandingBalance = await paymentModel.lockAndCheckBalance(groupId, userId, paidToUserId, client);
+    
+    if (outstandingBalance <= 0) {
+      throw new Error('NO_OUTSTANDING_BALANCE');
+    }
+    if (amountCents > outstandingBalance) {
+      throw new Error('PAYMENT_EXCEEDS_BALANCE');
+    }
+
+    // 3. Execute model INSERT query passing the client
+    payment = await paymentModel.insertPaymentRow({
+      groupId,
+      paidByUserId: userId,
+      paidToUserId,
+      amountCents,
+      currency: currency || 'INR',
+      paymentMethod: paymentMethod || 'cash',
+      note: note || null,
+      idempotencyKey: data.idempotencyKey || null,
+    }, client);
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.message === 'NO_OUTSTANDING_BALANCE') {
+        throw ApiError.unprocessable(
+            'You do not owe anything to this user in this group',
+            [{ field: 'amountCents', message: 'No outstanding balance exists' }]
+        );
+    }
+    if (err.message === 'PAYMENT_EXCEEDS_BALANCE') {
+        throw ApiError.unprocessable(
+            'PAYMENT_EXCEEDS_BALANCE',
+            `Payment amount (${amountCents}) exceeds outstanding balance (BR-05)`
+        );
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 
   // Invalidate balance cache
   await balanceService.invalidateBalanceCache(groupId);

@@ -261,22 +261,26 @@ async function updateExpense(userId, expenseId, data) {
     );
   }
 
-  // BR-04: Check for related settlements
+  // Edit Expense Guard: Cannot change math if partial payments exist mapping participants of this exact expense
   const hasSettlements = await expenseModel.hasRelatedSettlements(expenseId, expense.group_id);
+  
   if (hasSettlements) {
-    throw ApiError.unprocessable(
-      'Cannot edit expense with existing confirmed settlements (BR-04)',
-      [{ field: 'settlements', message: 'Settlements exist for participants of this expense' }]
-    );
+    // If settlements exist, prevent modifications to amounts or types
+    if (data.splitType !== undefined || data.splits !== undefined || data.totalAmountCents !== undefined || data.participantIds !== undefined) {
+      throw ApiError.unprocessable(
+        'SPLIT_EDIT_BLOCKED',
+        'Cannot change split type or amounts after payments have been recorded. Delete the expense and recreate it.'
+      );
+    }
   }
 
   // Build update fields (map camelCase to snake_case)
   const fields = {};
   if (data.title !== undefined) fields.title = data.title;
   if (data.description !== undefined) fields.description = data.description;
-  if (data.totalAmountCents !== undefined) fields.total_amount_cents = data.totalAmountCents;
+  if (data.totalAmountCents !== undefined && !hasSettlements) fields.total_amount_cents = data.totalAmountCents;
   if (data.currency !== undefined) fields.currency = data.currency;
-  if (data.splitType !== undefined) fields.split_type = data.splitType;
+  if (data.splitType !== undefined && !hasSettlements) fields.split_type = data.splitType;
   if (data.category !== undefined) fields.category = data.category;
   if (data.expenseDate !== undefined) fields.expense_date = data.expenseDate;
 
@@ -379,15 +383,33 @@ async function deleteExpense(userId, expenseId) {
     );
   }
 
-  await expenseModel.softDeleteExpense(expenseId);
+  const client = await expenseModel.getClient();
+  try {
+    await client.query('BEGIN');
+
+    // Soft delete expense natively 
+    await expenseModel.softDeleteExpense(expenseId, client);
+
+    // Deactivate splits
+    await expenseModel.deactivateSplitsByExpenseId(expenseId, client);
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 
   // Invalidate balance cache
   await balanceService.invalidateBalanceCache(expense.group_id);
 
-  // Log activity
+  // Log activity MUST capture deletedBy explicitly (Actor User UUID)
   await activityService.logActivity(userId, expense.group_id, ACTION_TYPES.EXPENSE_DELETED, ENTITY_TYPES.EXPENSE, expenseId, {
+    expenseId,
     title: expense.title,
     totalAmountCents: expense.total_amount_cents,
+    deletedBy: userId,
   });
 
   // Emit realtime event for live UI updates

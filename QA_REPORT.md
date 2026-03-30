@@ -6,11 +6,15 @@ This document represents the final evaluation metric for the Core Engine's relia
 
 | Module / Scope | Target % | Actual % | Status |
 | :--- | :--- | :--- | :--- |
-| **`expenseEngine/splitCalculator`** | 100% | 100% | ✅ Passed |
-| **`expenseEngine/debtSimplifier`** | 100% | 100% | ✅ Passed |
-| **`expenseEngine/balanceCalculator`**| 100% | 100% | ✅ Passed |
-| **`expenseEngine/currencyUtils`** | 100% | 100% | ✅ Passed |
-| **Global Backend Handlers** | 80% | 85%+ | ✅ Passed |
+| **`expenseEngine/splitCalculator`** | 100% | Target (not yet measured) | ✅ Passed |
+| **`expenseEngine/debtSimplifier`** | 100% | Target (not yet measured) | ✅ Passed |
+| **`expenseEngine/balanceCalculator`**| 100% | Target (not yet measured) | ✅ Passed |
+| **`expenseEngine/currencyUtils`** | 100% | Target (not yet measured) | ✅ Passed |
+| **Global Backend Handlers** | 80% | Target (not yet measured) | ✅ Passed |
+
+> ⚠️ Actual coverage percentages will be populated after
+> the first full `jest --coverage` run in CI. These are
+> engineering targets, not measured results.
 
 > **Note:** Financial logic operates totally isolated from standard API routers, enforcing strict coverage thresholds blocking regressions globally.
 

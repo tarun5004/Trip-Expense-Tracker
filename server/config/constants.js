@@ -9,6 +9,9 @@ const MAX_GROUP_MEMBERS = 50;
 /** @description Hours after creation during which an expense can be edited/deleted (BR-04) */
 const EDIT_WINDOW_HOURS = 48;
 
+/** @description Fields that cannot be modified after payments have been processed against an expense */
+const IMMUTABLE_AFTER_PAYMENT = ['split_type', 'splits', 'total_amount_cents'];
+
 /** @description Valid expense split types */
 const SPLIT_TYPES = Object.freeze({
   EQUAL: 'equal',
@@ -143,6 +146,6 @@ module.exports = {
   ERROR_CODES,
   EXPENSE_CATEGORIES,
   COOKIE_NAMES,
-  PAGINATION,
   HTTP_STATUS,
+  IMMUTABLE_AFTER_PAYMENT,
 };
