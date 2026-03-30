@@ -25,3 +25,30 @@ Idempotency — every S→C payload includes a UUID eventId. The client dedup se
 Dual room architecture — group:{id} for group-scoped events, user:{id} for personal notifications.
 Service integration complete — expense.service.js and payment.service.js emit realtime events after every create/update/delete mutation + a paired balance:updated event.
 Graceful shutdown — closeSocketServer() added to server.js shutdown sequence.
+
+
+
+
+✅ State Management Infrastructure Complete!
+
+I have successfully generated all 20 requested files (plus a necessary axios.js interceptor), separating your client UI state from your server relational state. The dependencies (zustand and @tanstack/react-query) have been installed successfully.
+
+Architecture Recap
+1. Ephemeral Client State (zustand)
+
+authStore.js: Keeps the JWT securely in-memory. Wipes on explicit logouts or HTTP 401 intercepts.
+uiStore.js: Replaces complex contextual drilling. Any component can now trigger a modal or throw a Toast directly globally.
+draftStore.js: Uses Zustand's persist middleware wired specifically to sessionStorage (instead of localStorage), so users don't lose complex Expense Math arrays if they accidentally reload a tab, but cleans up securely when they close the browser.
+2. Relational Server State (@tanstack/react-query)
+
+queryClient.js: Standardized with a 5 min stale window and a bullet-proof queryKeys factory tree.
+useOptimisticExpense.js: Injects an expense locally into queryKeys.expenses.list with a temp-... UUID and status: 'pending' before the backend acknowledges it. Implements rollback logic inside the onError boundary.
+useBalances.js: Optimistically reduces negative balances immediately when clicking "Settle Up" so the grid updates natively while preventing the button from being double-clicked.
+3. Realtime Overrides (useRealtime.js)
+
+Connects automatically after authStore.js fires an isAuthenticated boolean.
+Listens to backend pushes (expense:created, payment:recorded) and issues exact queryClient.invalidateQueries calls to sync other tabs/devices natively without reloading pages.
+Leverages an LRU-eviction Set checking the eventId to prevent repeating fetches if the user simultaneously initiated an optimistic mutation!
+You can read through the comprehensive technical rules implemented in the new CACHE_STRATEGY.md file located at the project root.
+
+What's Next? Our architecture is entirely scaffolded! Do you want to finally stitch the Pages, Layouts, Stores, and Hooks together using React Router inside our main App.jsx entry file?
